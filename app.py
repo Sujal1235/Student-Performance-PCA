@@ -22,9 +22,7 @@ if uploaded_file is not None:
     st.write(f"Shape: {df.shape[0]} rows × {df.shape[1]} columns")
     st.dataframe(df.head())
     
-    # ============================================
-    # PREPROCESS DATA FOR PCA (FIXES THE ERROR)
-    # ============================================
+    # Preprocess data for PCA
     def preprocess_for_pca(data):
         """Convert all data to numeric for PCA"""
         data_processed = data.copy()
@@ -63,9 +61,12 @@ if uploaded_file is not None:
     st.write(f"Features used: {len(feature_names)}")
     st.dataframe(X.head())
     
-    # ============================================
-    # RUN PCA
-    # ============================================
+    # Check if we have enough features
+    if X.shape[1] < 2:
+        st.error(f"❌ Not enough features for PCA! Need at least 2 features, but found {X.shape[1]}.")
+        st.stop()
+    
+    # Run PCA
     with st.spinner("📊 Running PCA analysis..."):
         # Standardize
         scaler = StandardScaler()
@@ -75,9 +76,7 @@ if uploaded_file is not None:
         pca = PCA()
         X_pca = pca.fit_transform(X_scaled)
     
-    # ============================================
-    # RESULTS
-    # ============================================
+    # Results
     explained_variance = pca.explained_variance_ratio_
     cumulative_variance = np.cumsum(explained_variance)
     
@@ -93,9 +92,7 @@ if uploaded_file is not None:
     with col3:
         st.metric("Total Variance Explained", f"{cumulative_variance[-1]:.1%}")
     
-    # ============================================
-    # SCREE PLOT
-    # ============================================
+    # Scree Plot
     st.subheader("📈 Explained Variance Analysis")
     
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -122,23 +119,30 @@ if uploaded_file is not None:
     plt.tight_layout()
     st.pyplot(fig)
     
-    # ============================================
-    # PCA BI-PLOT
-    # ============================================
-    st.subheader("🎯 PCA Visualization - First 2 Components")
+    # ============ FIX FOR THE ERROR ============
+    # Check if we have at least 2 components for biplot
+    st.subheader("🎯 PCA Visualization")
     
-    fig, ax = plt.subplots(figsize=(10, 7))
-    scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.6, c='blue', s=30)
-    ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.1f}%)')
-    ax.set_ylabel(f'PC2 ({explained_variance[1]*100:.1f}%)')
-    ax.set_title('PCA Biplot - All Students')
-    ax.grid(True, alpha=0.3)
+    if X_pca.shape[1] >= 2:
+        # We have at least 2 components - show biplot
+        fig, ax = plt.subplots(figsize=(10, 7))
+        scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.6, c='blue', s=30)
+        ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.1f}%)')
+        ax.set_ylabel(f'PC2 ({explained_variance[1]*100:.1f}%)')
+        ax.set_title('PCA Biplot - All Students')
+        ax.grid(True, alpha=0.3)
+        st.pyplot(fig)
+    else:
+        # Only 1 component - show 1D plot
+        st.warning(f"⚠️ Only {X_pca.shape[1]} principal component found. Showing 1D visualization.")
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.scatter(X_pca[:, 0], np.zeros_like(X_pca[:, 0]), alpha=0.6, c='blue', s=30)
+        ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.1f}%)')
+        ax.set_title('PCA - First Principal Component (1D)')
+        ax.grid(True, alpha=0.3)
+        st.pyplot(fig)
     
-    st.pyplot(fig)
-    
-    # ============================================
-    # FEATURE LOADINGS
-    # ============================================
+    # Feature Loadings
     st.subheader("📊 Top Features Contributing to PC1")
     
     loadings = pd.DataFrame(
@@ -147,7 +151,6 @@ if uploaded_file is not None:
         index=feature_names
     )
     
-    # Top 10 features for PC1
     top_features = loadings['PC1'].abs().sort_values(ascending=False).head(10)
     
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -158,28 +161,23 @@ if uploaded_file is not None:
     plt.tight_layout()
     st.pyplot(fig)
     
-    # ============================================
-    # FEATURE LOADINGS TABLE
-    # ============================================
+    # Feature Loadings Table
     st.subheader("📋 Feature Loadings Table (First 3 PCs)")
     
-    # Show top 20 features
+    # Show available components
+    available_pcs = [f'PC{i+1}' for i in range(min(3, len(pca.components_)))]
     st.dataframe(
-        loadings[['PC1', 'PC2', 'PC3']].head(20).style.background_gradient(cmap='RdBu_r', axis=0)
+        loadings[available_pcs].head(20).style.background_gradient(cmap='RdBu_r', axis=0)
     )
     
-    # ============================================
-    # DOWNLOAD RESULTS
-    # ============================================
+    # Download Results
     st.subheader("💾 Download Results")
     
-    # Create PCA results dataframe
     pca_df = pd.DataFrame(
         X_pca[:, :min(10, X_pca.shape[1])],
         columns=[f'PC{i+1}' for i in range(min(10, X_pca.shape[1]))]
     )
     
-    # Add student_id if available
     if 'student_id' in df.columns:
         pca_df['student_id'] = df['student_id'].values
     
