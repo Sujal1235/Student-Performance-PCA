@@ -22,6 +22,10 @@ if uploaded_file is not None:
     st.write(f"Shape: {df.shape[0]} rows × {df.shape[1]} columns")
     st.dataframe(df.head())
     
+    # Show column info
+    st.write("**Column Data Types:**")
+    st.write(df.dtypes)
+    
     # Preprocess data for PCA
     def preprocess_for_pca(data):
         """Convert all data to numeric for PCA"""
@@ -58,12 +62,26 @@ if uploaded_file is not None:
         X, feature_names = preprocess_for_pca(df)
     
     st.subheader("🔢 Processed Data (All Numeric)")
-    st.write(f"Features used: {len(feature_names)}")
-    st.dataframe(X.head())
+    st.write(f"Features found: {len(feature_names)}")
     
-    # Check if we have enough features
+    # Show what features were found
+    st.write("**Features used for PCA:**")
+    st.write(feature_names)
+    
+    # ============ CHECK IF WE HAVE ENOUGH FEATURES ============
     if X.shape[1] < 2:
-        st.error(f"❌ Not enough features for PCA! Need at least 2 features, but found {X.shape[1]}.")
+        st.error(f"❌ Not enough features for PCA! Found {X.shape[1]} feature(s), but need at least 2.")
+        st.warning("💡 **Solution:** Your CSV needs at least 2 numeric columns for PCA.")
+        st.info("📝 **Try this:** Make sure your CSV has columns like:\n- G1, G2, G3 (grades)\n- age, failures, absences\n- famrel, freetime, goout\n- Dalc, Walc, health\n\nThese are all numeric columns that can be used for PCA.")
+        
+        # Show what columns are available
+        st.write("**Available columns in your CSV:**")
+        st.write(df.columns.tolist())
+        
+        # Show which columns are numeric
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        st.write(f"**Numeric columns found:** {numeric_cols}")
+        
         st.stop()
     
     # Run PCA
@@ -119,8 +137,7 @@ if uploaded_file is not None:
     plt.tight_layout()
     st.pyplot(fig)
     
-    # ============ FIX FOR THE ERROR ============
-    # Check if we have at least 2 components for biplot
+    # PCA Visualization
     st.subheader("🎯 PCA Visualization")
     
     if X_pca.shape[1] >= 2:
